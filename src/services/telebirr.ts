@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import puppeteer from 'puppeteer';
 import * as cheerio from "cheerio";
 import logger from '../utils/logger';
 
@@ -67,14 +68,36 @@ function scrapeTelebirrReceipt(html: string): TelebirrReceipt {
 
 export async function verifyTelebirr(reference: string): Promise<TelebirrReceipt | null> {
     const url = `https://transactioninfo.ethiotelecom.et/receipt/${reference}`;
+    let browser;
     try {
-        logger.info(`Attempting to fetch Telebirr receipt: ${url}`);
-        const response = await axios.get(url, { timeout: 15000 });
-        const data = scrapeTelebirrReceipt(response.data);
+        logger.info(`Attempting to fetch Telebirr receipt via Puppeteer: ${url}`);
+
+        browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        const page = await browser.newPage();
+
+        // Set a real user agent to avoid basic blocking
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        // Wait for connection to settle
+        await new Promise(r => setTimeout(r, 2000));
+
+        const content = await page.content();
+        await browser.close();
+        browser = null;
+
+        const data = scrapeTelebirrReceipt(content);
         if (data.receiptNo && data.payerName) return data;
+
+        logger.warn(`Telebirr scrape finished but data incomplete for ${reference}`);
         return null;
     } catch (error: any) {
         logger.error(`Error fetching Telebirr receipt: ${error.message}`);
+        if (browser) await browser.close();
         return null;
     }
 }
