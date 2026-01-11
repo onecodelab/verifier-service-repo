@@ -38,7 +38,7 @@ function extractDateRegex(htmlContent: string): string | null {
 
 function extractWithRegex(htmlContent: string, labelPattern: string): string | null {
     const escapedLabel = labelPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`${escapedLabel}.*?<\\/td>\\s*<td[^>]*>\\s*([^<]+)`, 'i');
+    const pattern = new RegExp(`${escapedLabel}.*?<\\/td>\\s*<td[^>]*>\\s*([^<]+)`, 'is');
     const match = htmlContent.match(pattern);
     return match ? match[1].replace(/<[^>]*>/g, '').trim() : null;
 }
