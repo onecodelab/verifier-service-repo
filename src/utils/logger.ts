@@ -9,4 +9,6 @@ const logger = {
     }
 };
 
+export { logger };
 export default logger;
+

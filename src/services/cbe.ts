@@ -72,12 +72,22 @@ async function parseCBEReceipt(buffer: ArrayBuffer): Promise<CBEVerifyResult> {
         const rawText = parsed.text.replace(/\s+/g, ' ').trim();
 
         const payerName = rawText.match(/Payer\s*:?\s*(.*?)\s+Account/i)?.[1]?.trim();
+        const receiverName = rawText.match(/Receiver\s*:?\s*(.*?)\s+Account/i)?.[1]?.trim();
+
+        // Match Account numbers (may be masked like 1****2704)
+        const accounts = rawText.match(/Account\s*:?\s*([\d\*x\-]+)/gi);
+        const payerAccount = accounts?.[0]?.replace(/Account\s*:?\s*/i, '').trim();
+        const receiverAccount = accounts?.[1]?.replace(/Account\s*:?\s*/i, '').trim();
+
         const amountText = rawText.match(/Transferred Amount\s*:?\s*([\d,]+\.\d{2})\s*ETB/i)?.[1];
         const reference = rawText.match(/Reference No\.?\s*\(VAT Invoice No\)\s*:?\s*([A-Z0-9]+)/i)?.[1]?.trim();
 
         return {
             success: true,
             payer: payerName,
+            payerAccount: payerAccount,
+            receiver: receiverName,
+            receiverAccount: receiverAccount,
             amount: amountText ? parseFloat(amountText.replace(/,/g, '')) : 0,
             reference: reference
         };
