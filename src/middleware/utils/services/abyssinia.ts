@@ -1,17 +1,18 @@
-import axios from 'axios';
-import { load } from 'cheerio';
-import { logger } from '../utils/logger';
+import axios from "axios";
+import { load } from "cheerio";
+import { logger } from "../logger";
 
 export async function verifyAbyssinia(reference: string, suffix: string) {
   try {
     if (suffix.length !== 5) {
-      throw new Error('Suffix must be exactly 5 digits');
+      throw new Error("Suffix must be exactly 5 digits");
     }
 
     const url = `https://www.bankofabyssinia.com/receipt/${reference}/${suffix}`;
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
 
@@ -23,7 +24,7 @@ export async function verifyAbyssinia(reference: string, suffix: string) {
     const status = $('td:contains("Status")').next().text().trim();
 
     if (!transactionRef || !amount) {
-      throw new Error('Invalid Abyssinia reference or suffix');
+      throw new Error("Invalid Abyssinia reference or suffix");
     }
 
     return {
@@ -36,7 +37,7 @@ export async function verifyAbyssinia(reference: string, suffix: string) {
       reference,
     };
   } catch (error: any) {
-    logger.error('Abyssinia verification failed:', error.message);
+    logger.error("Abyssinia verification failed:", error.message);
     throw error;
   }
 }

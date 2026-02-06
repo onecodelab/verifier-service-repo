@@ -1,20 +1,20 @@
-import axios from 'axios';
-import { logger } from '../utils/logger';
+import axios from "axios";
+import { logger } from "../logger";
 
 export async function verifyImage(imageData: string, suffix?: string) {
   try {
     const mistralKey = process.env.MISTRAL_API_KEY;
     if (!mistralKey) {
-      throw new Error('Mistral API key not configured');
+      throw new Error("Mistral API key not configured");
     }
 
     const response = await axios.post(
-      'https://api.mistral.ai/v1/chat/completions',
+      "https://api.mistral.ai/v1/chat/completions",
       {
-        model: 'mistral-small-latest',
+        model: "mistral-small-latest",
         messages: [
           {
-            role: 'user',
+            role: "user",
             content: `Analyze this payment receipt image and extract the following information if visible:
 1. Receipt type (CBE, Telebirr, Dashen, Abyssinia, CBE Birr)
 2. Amount
@@ -31,7 +31,7 @@ Respond in JSON format.`,
       {
         headers: {
           Authorization: `Bearer ${mistralKey}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );
@@ -41,7 +41,7 @@ Respond in JSON format.`,
 
     return {
       success: true,
-      detectedType: extractedData.receiptType || 'unknown',
+      detectedType: extractedData.receiptType || "unknown",
       amount: extractedData.amount,
       payerName: extractedData.payerName,
       receiverName: extractedData.receiverName,
@@ -51,7 +51,7 @@ Respond in JSON format.`,
       suffix,
     };
   } catch (error: any) {
-    logger.error('Image verification failed:', error.message);
+    logger.error("Image verification failed:", error.message);
     throw error;
   }
 }

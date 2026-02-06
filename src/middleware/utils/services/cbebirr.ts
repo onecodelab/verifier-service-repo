@@ -1,18 +1,24 @@
-import axios from 'axios';
-import { load } from 'cheerio';
-import { logger } from '../utils/logger';
+import axios from "axios";
+import { load } from "cheerio";
+import { logger } from "../logger";
 
-export async function verifyCBEBirr(receiptNumber: string, phoneNumber: string) {
+export async function verifyCBEBirr(
+  receiptNumber: string,
+  phoneNumber: string
+) {
   try {
     const phoneRegex = /^251\d{9}$/;
     if (!phoneRegex.test(phoneNumber)) {
-      throw new Error('Invalid Ethiopian phone number format (must be 251 + 9 digits)');
+      throw new Error(
+        "Invalid Ethiopian phone number format (must be 251 + 9 digits)"
+      );
     }
 
     const url = `https://cbebirr.et/receipt/${receiptNumber}`;
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
 
@@ -25,7 +31,7 @@ export async function verifyCBEBirr(receiptNumber: string, phoneNumber: string) 
     const date = $('td:contains("Date")').next().text().trim();
 
     if (!payerName || !amount) {
-      throw new Error('Invalid CBE Birr receipt');
+      throw new Error("Invalid CBE Birr receipt");
     }
 
     return {
@@ -40,7 +46,7 @@ export async function verifyCBEBirr(receiptNumber: string, phoneNumber: string) 
       receiptNumber,
     };
   } catch (error: any) {
-    logger.error('CBE Birr verification failed:', error.message);
+    logger.error("CBE Birr verification failed:", error.message);
     throw error;
   }
 }

@@ -1,10 +1,10 @@
-import axios from 'axios';
-import { load } from 'cheerio';
-import { logger } from '../utils/logger';
+import axios from "axios";
+import { load } from "cheerio";
+import { logger } from "../logger";
 
 export async function verifyTelebirr(reference: string) {
   try {
-    const skipPrimary = process.env.SKIP_PRIMARY_VERIFICATION === 'true';
+    const skipPrimary = process.env.SKIP_PRIMARY_VERIFICATION === "true";
     let url = `https://transactioninfo.ethiotelecom.et/receipt/${reference}`;
 
     try {
@@ -12,7 +12,8 @@ export async function verifyTelebirr(reference: string) {
         const response = await axios.get(url, {
           timeout: 10000,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
           },
         });
 
@@ -25,7 +26,7 @@ export async function verifyTelebirr(reference: string) {
         const fees = $('td:contains("Fee")').next().text().trim();
         const total = $('td:contains("Total")').next().text().trim();
 
-        if (!payerName) throw new Error('Receipt not found');
+        if (!payerName) throw new Error("Receipt not found");
 
         return {
           success: true,
@@ -40,15 +41,18 @@ export async function verifyTelebirr(reference: string) {
         };
       }
     } catch (primaryError: any) {
-      logger.warn(`Primary Telebirr verification failed: ${primaryError.message}`);
+      logger.warn(
+        `Primary Telebirr verification failed: ${primaryError.message}`
+      );
     }
 
     // Fallback to relay service
-    const relayUrl = process.env.TELEBIRR_RELAY || 'https://relay.example.com/verify-telebirr';
+    const relayUrl =
+      process.env.TELEBIRR_RELAY || "https://relay.example.com/verify-telebirr";
     const relayResponse = await axios.post(relayUrl, { reference });
     return relayResponse.data;
   } catch (error: any) {
-    logger.error('Telebirr verification failed:', error.message);
+    logger.error("Telebirr verification failed:", error.message);
     throw error;
   }
 }
