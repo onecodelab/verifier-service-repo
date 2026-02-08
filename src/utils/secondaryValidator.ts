@@ -107,9 +107,15 @@ function amountsMatch(actual: number, expected: number, tolerance: number): bool
 export function validateTransaction(
     normalized: NormalizedVerifierResponse,
     expectedAmount: number,
-    paymentMethod: string
+    paymentMethod: string,
+    expectedReceiver?: string
 ): ValidationResult {
-    const profile: ReceiverProfile = RECEIVER_PROFILES[paymentMethod] || {};
+    const profile: ReceiverProfile = { ...(RECEIVER_PROFILES[paymentMethod] || {}) };
+
+    // Override profile if dynamic receiver provided
+    if (expectedReceiver) {
+        profile.receiver_account = expectedReceiver;
+    }
     const failedReasons: string[] = [];
 
     // Initialize checks

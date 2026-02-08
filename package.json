@@ -1,7 +1,7 @@
 {
-    "name": "sosha-verifier-service",
+    "name": "baro-verifier-service",
     "version": "1.0.0",
-    "description": "Self-hosted payment verification service for Sosha OS",
+    "description": "Self-hosted payment verification service for Baro OS",
     "main": "dist/index.js",
     "scripts": {
         "dev": "nodemon --watch src --exec ts-node src/index.ts",

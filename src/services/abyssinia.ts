@@ -45,26 +45,38 @@ export async function verifyAbyssinia(reference: string, suffix: string): Promis
         // Extract data from the page
         const data = await page.evaluate(() => {
             const getText = (label: string): string => {
-                const elements = document.querySelectorAll('td, div, span, p');
+                const elements = Array.from(document.querySelectorAll('td, div, span, p, label'));
                 for (const el of elements) {
-                    if (el.textContent?.toLowerCase().includes(label.toLowerCase())) {
-                        const next = el.nextElementSibling;
-                        if (next) return next.textContent?.trim() || '';
+                    const text = el.textContent?.trim().toLowerCase() || '';
+                    if (text === label.toLowerCase() || text.startsWith(label.toLowerCase() + ':')) {
+                        // Check next sibling OR parent's next sibling (common in tables)
+                        const val = el.nextElementSibling?.textContent?.trim() ||
+                            el.parentElement?.nextElementSibling?.textContent?.trim();
+                        if (val) return val;
                     }
                 }
                 return '';
             };
 
+            // Fallback: Look for the amount pattern (digits with optional decimals/commas followed by ETB/Birr or preceded by Sum/Amt)
+            const findAmountFallback = (): string => {
+                const bodyText = document.body.innerText;
+                const match = bodyText.match(/(?:amount|sum|total|quantity)[\s:]+([\d,]+\.?\d*)/i);
+                return match ? match[1] : '';
+            };
+
+            const amount = getText('amount') || getText('sum') || getText('total') || findAmountFallback();
+
             return {
-                payer: getText('payer') || getText('sender'),
-                payerAccount: getText('payerAccount') || getText('account'),
-                receiver: getText('receiver') || getText('beneficiary'),
-                receiverAccount: getText('receiverAccount') || getText('beneficiaryAccount'),
-                amount: getText('amount'),
-                date: getText('date'),
-                status: getText('status') || getText('success'),
-                reason: getText('reason') || getText('description'),
-                reference: getText('reference')
+                payer: getText('payer') || getText('sender') || getText('from'),
+                payerAccount: getText('payerAccount') || getText('account') || getText('sender account'),
+                receiver: getText('receiver') || getText('beneficiary') || getText('to'),
+                receiverAccount: getText('receiverAccount') || getText('beneficiaryAccount') || getText('to account'),
+                amount: amount,
+                date: getText('date') || getText('time'),
+                status: getText('status') || getText('success') || getText('completed'),
+                reason: getText('reason') || getText('description') || getText('remark'),
+                reference: getText('reference') || getText('trx id') || getText('transaction id')
             };
         });
 

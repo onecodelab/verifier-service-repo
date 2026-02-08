@@ -70,7 +70,8 @@ app.post('/verify-payment', apiKeyMiddleware, async (req: Request, res: Response
     accountSuffix,  // CBE
     suffix,         // Abyssinia
     phoneNumber,    // CBE Birr
-    receiptNumber   // CBE Birr
+    receiptNumber,  // CBE Birr
+    expected_receiver // Optional override for validation
   } = req.body;
 
   // Validate required fields
@@ -153,7 +154,7 @@ app.post('/verify-payment', apiKeyMiddleware, async (req: Request, res: Response
     }
 
     // Run secondary validation
-    const validation = validateTransaction(normalized, expected_amount, payment_method);
+    const validation = validateTransaction(normalized, expected_amount, payment_method, expected_receiver);
 
     // Build response
     const response: VerifyPaymentResponse = {

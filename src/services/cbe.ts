@@ -17,7 +17,10 @@ export interface CBEVerifyResult {
 }
 
 export async function verifyCBE(reference: string, accountSuffix: string): Promise<CBEVerifyResult> {
-    const fullId = `${reference}${accountSuffix}`;
+    // CBE receipt URL usually expects an 8-digit suffix. 
+    // If the full 13-digit account number is provided, we extract the last 8.
+    const suffix = accountSuffix.length > 8 ? accountSuffix.slice(-8) : accountSuffix;
+    const fullId = `${reference}${suffix}`;
     const url = `https://apps.cbe.com.et:100/?id=${fullId}`;
     const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 

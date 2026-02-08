@@ -448,4 +448,4 @@ Inspired by [Vixen878/verifier-api](https://github.com/Vixen878/verifier-api)
 
 ---
 
-**Built with ❤️ for Sosha OS**
+**Built with ❤️ for Baro OS**

@@ -18,16 +18,16 @@ export const RECEIVER_PROFILES: Record<string, ReceiverProfile> = {
         receiver_account: "0962071522"
     },
     cbe: {
-        receiver_account: "1000356042704"
+        receiver_account: "1000302293007"
     },
     dashen: {
-        receiver_name: "SOSHA OS PLC"
+        receiver_name: "BaroOS.ai"
     },
     abyssinia: {
         receiver_account: "138816408"
     },
     cbebirr: {
-        receiver_name: "SOSHA OS PLC"
+        receiver_name: "BaroOS.ai"
     }
 };
 
