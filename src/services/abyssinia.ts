@@ -37,46 +37,71 @@ export async function verifyAbyssinia(reference: string, suffix: string): Promis
 
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+        logger.info(`Navigating to Abyssinia receipt...`);
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+        logger.info(`Page loaded, waiting for dynamic content...`);
 
         // Wait for the SPA to render content
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 5000));
+        logger.info(`Starting data extraction...`);
 
         // Extract data from the page
         const data = await page.evaluate(() => {
+            const bodyText = document.body.innerText;
+            const bodyHtml = document.body.innerHTML;
+
             const getText = (label: string): string => {
-                const elements = Array.from(document.querySelectorAll('td, div, span, p, label'));
+                const elements = Array.from(document.querySelectorAll('td, div, span, p, label, b, strong'));
                 for (const el of elements) {
                     const text = el.textContent?.trim().toLowerCase() || '';
                     if (text === label.toLowerCase() || text.startsWith(label.toLowerCase() + ':')) {
-                        // Check next sibling OR parent's next sibling (common in tables)
-                        const val = el.nextElementSibling?.textContent?.trim() ||
-                            el.parentElement?.nextElementSibling?.textContent?.trim();
+                        let val = el.nextElementSibling?.textContent?.trim();
+                        if (!val) {
+                            // Check parent's next sibling (common in tables)
+                            val = el.parentElement?.nextElementSibling?.textContent?.trim();
+                        }
                         if (val) return val;
                     }
                 }
                 return '';
             };
 
-            // Fallback: Look for the amount pattern (digits with optional decimals/commas followed by ETB/Birr or preceded by Sum/Amt)
-            const findAmountFallback = (): string => {
-                const bodyText = document.body.innerText;
-                const match = bodyText.match(/(?:amount|sum|total|quantity)[\s:]+([\d,]+\.?\d*)/i);
-                return match ? match[1] : '';
+            // Aggressive amount search (look for numbers followed by ETB/Birr or preceded by specific words)
+            const findAmountRobust = (): string => {
+                const labelMatch = getText('amount') || getText('sum') || getText('total') || getText('quantity');
+                if (labelMatch) return labelMatch;
+
+                // Regex: find numbers that look like money (e.g. 440.00, 1,200)
+                const moneyRegex = /(?:amount|sum|total|price|etb|birr)[\s:]*([\d,]+\.?\d*)/i;
+                const match = bodyText.match(moneyRegex);
+                if (match) return match[1];
+
+                // Last resort: find any large number near the word "ETB"
+                const etbMatch = bodyText.match(/([\d,]+\.?\d*)\s*(?:ETB|Birr|ብር)/i);
+                return etbMatch ? etbMatch[1] : '';
             };
 
-            const amount = getText('amount') || getText('sum') || getText('total') || findAmountFallback();
+            // Aggressive reference search
+            const findRefRobust = (): string => {
+                const labelMatch = getText('reference') || getText('trx id') || getText('transaction id') || getText('ref');
+                if (labelMatch) return labelMatch;
+
+                // Abyssinia refs usually start with FT or a number and are ~12 chars
+                const refRegex = /(?:FT|TX|REF)[\d\w]{8,15}/i;
+                const match = bodyText.match(refRegex);
+                return match ? match[0] : '';
+            };
 
             return {
                 payer: getText('payer') || getText('sender') || getText('from'),
                 payerAccount: getText('payerAccount') || getText('account') || getText('sender account'),
                 receiver: getText('receiver') || getText('beneficiary') || getText('to'),
                 receiverAccount: getText('receiverAccount') || getText('beneficiaryAccount') || getText('to account'),
-                amount: amount,
-                date: getText('date') || getText('time'),
+                amount: findAmountRobust(),
+                date: getText('date') || getText('time') || getText('transaction date'),
                 status: getText('status') || getText('success') || getText('completed'),
                 reason: getText('reason') || getText('description') || getText('remark'),
-                reference: getText('reference') || getText('trx id') || getText('transaction id')
+                reference: findRefRobust()
             };
         });
 

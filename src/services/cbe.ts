@@ -22,6 +22,8 @@ export async function verifyCBE(reference: string, accountSuffix: string): Promi
     const suffix = accountSuffix.length > 8 ? accountSuffix.slice(-8) : accountSuffix;
     const fullId = `${reference}${suffix}`;
     const url = `https://apps.cbe.com.et:100/?id=${fullId}`;
+
+    logger.info(`Attempting CBE fetch: ${url}`);
     const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
     try {
@@ -33,7 +35,7 @@ export async function verifyCBE(reference: string, accountSuffix: string): Promi
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                 'Accept': 'application/pdf'
             },
-            timeout: 30000
+            timeout: 60000
         });
 
         return await parseCBEReceipt(response.data);
@@ -54,8 +56,10 @@ export async function verifyCBE(reference: string, accountSuffix: string): Promi
                 }
             });
 
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await new Promise(res => setTimeout(res, 5000));
+            logger.info(`Navigating to CBE URL via Puppeteer...`);
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            logger.info(`Page loaded, waiting for PDF detection...`);
+            await new Promise(res => setTimeout(res, 8000));
             await browser.close();
 
             if (!detectedPdfUrl) return { success: false, error: 'No PDF detected' };
