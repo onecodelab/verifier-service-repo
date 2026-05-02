@@ -1,7 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import dotenv from 'dotenv';
 import { verifyTelebirr } from './services/telebirr';
 import { verifyCBE } from './services/cbe';
 import { verifyDashen } from './services/dashen';
@@ -10,6 +12,8 @@ import { verifyCBEBirr } from './services/cbebirr';
 import { verifyImage } from './services/image';
 import { logger } from './utils/logger';
 import { apiKeyMiddleware } from './middleware/auth';
+import { buildVerificationCacheKey, getCachedVerification, setCachedVerification } from './utils/verificationCache';
+import { verifyWithOfficialSDK } from './services/officialVerifier';
 
 // Secondary Validation Layer Imports
 import { NormalizedVerifierResponse, VerifyPaymentResponse } from './types/normalizedTypes';
@@ -22,10 +26,8 @@ import {
 } from './utils/normalizer';
 import { validateTransaction } from './utils/secondaryValidator';
 
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3003;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -61,7 +63,7 @@ app.get('/', (req: Request, res: Response) => {
 // ============================================================
 // CONSOLIDATED VERIFY-PAYMENT ENDPOINT (with Secondary Validation)
 // ============================================================
-app.post('/verify-payment', apiKeyMiddleware, async (req: Request, res: Response) => {
+app.post(['/verify-payment', '/verify_payment'], apiKeyMiddleware, async (req: Request, res: Response) => {
   const {
     payment_method,
     reference,
@@ -71,8 +73,28 @@ app.post('/verify-payment', apiKeyMiddleware, async (req: Request, res: Response
     suffix,         // Abyssinia
     phoneNumber,    // CBE Birr
     receiptNumber,  // CBE Birr
+    receiver_account, // Optional generic receiver account
     expected_receiver // Optional override for validation
   } = req.body;
+
+  const cacheKey = buildVerificationCacheKey([
+    'verify-payment',
+    payment_method,
+    reference,
+    expected_amount,
+    accountSuffix,
+    suffix,
+    phoneNumber,
+    receiptNumber,
+    receiver_account,
+    expected_receiver
+  ]);
+
+  const cachedResponse = await getCachedVerification<any>(cacheKey);
+  if (cachedResponse) {
+    logger.info(`Verify-payment cache hit [${payment_method}]: ref=${reference}`);
+    return res.json(cachedResponse);
+  }
 
   // Validate required fields
   if (!payment_method || !reference || expected_amount === undefined) {
@@ -86,61 +108,86 @@ app.post('/verify-payment', apiKeyMiddleware, async (req: Request, res: Response
   try {
     let normalized: NormalizedVerifierResponse;
 
-    // Route to correct bank scraper and normalize response
-    switch (payment_method) {
-      case 'telebirr': {
-        const rawData = await verifyTelebirr(reference);
-        normalized = normalizeTelebirr(rawData, reference);
-        break;
-      }
-      case 'cbe': {
-        if (!accountSuffix) {
+    // NEW: Try Official SDK First (Premium/Stable)
+    const officialResult = await verifyWithOfficialSDK(payment_method, reference, {
+      accountSuffix: accountSuffix || receiver_account || expected_receiver,
+      suffix: suffix
+    });
+
+    if (officialResult.success) {
+      logger.info(`Official SDK verification success for ${payment_method}: ${reference}`);
+      normalized = {
+        success: true,
+        payment_method: payment_method,
+        status: 'success',
+        amount: officialResult.amount,
+        receipt_reference: officialResult.receipt_reference,
+        payer_name: officialResult.payer_name,
+        receiver_name: officialResult.receiver_name,
+        receiver_account: officialResult.receiver_account,
+        date: officialResult.transaction_date || new Date().toISOString(),
+        transaction_date: officialResult.transaction_date,
+        raw: officialResult.raw
+      };
+    } else {
+      logger.info(`Official SDK failed or unconfigured for ${payment_method}. Falling back to local scrapers...`);
+      // Route to correct bank scraper (LOCAL FALLBACK)
+      switch (payment_method) {
+        case 'telebirr': {
+          const rawData = await verifyTelebirr(reference);
+          normalized = normalizeTelebirr(rawData, reference);
+          break;
+        }
+        case 'cbe': {
+          const cbeSuffix = accountSuffix || receiver_account || expected_receiver;
+          if (!cbeSuffix) {
+            return res.status(400).json({
+              success: false,
+              validated: false,
+              error: 'accountSuffix required for CBE'
+            });
+          }
+          const rawData = await verifyCBE(reference, cbeSuffix);
+          normalized = normalizeCBE(rawData);
+          break;
+        }
+        case 'dashen': {
+          const rawData = await verifyDashen(reference);
+          normalized = normalizeDashen(rawData);
+          break;
+        }
+        case 'abyssinia': {
+          if (!suffix) {
+            return res.status(400).json({
+              success: false,
+              validated: false,
+              error: 'suffix required for Abyssinia'
+            });
+          }
+          const rawData = await verifyAbyssinia(reference, suffix);
+          normalized = normalizeAbyssinia(rawData);
+          break;
+        }
+        case 'cbebirr': {
+          const rcpt = receiptNumber || reference;
+          if (!phoneNumber) {
+            return res.status(400).json({
+              success: false,
+              validated: false,
+              error: 'phoneNumber required for CBE Birr'
+            });
+          }
+          const rawData = await verifyCBEBirr(rcpt, phoneNumber);
+          normalized = normalizeCBEBirr(rawData);
+          break;
+        }
+        default:
           return res.status(400).json({
             success: false,
             validated: false,
-            error: 'accountSuffix required for CBE'
+            error: `Unsupported payment method: ${payment_method}`
           });
-        }
-        const rawData = await verifyCBE(reference, accountSuffix);
-        normalized = normalizeCBE(rawData);
-        break;
       }
-      case 'dashen': {
-        const rawData = await verifyDashen(reference);
-        normalized = normalizeDashen(rawData);
-        break;
-      }
-      case 'abyssinia': {
-        if (!suffix) {
-          return res.status(400).json({
-            success: false,
-            validated: false,
-            error: 'suffix required for Abyssinia'
-          });
-        }
-        const rawData = await verifyAbyssinia(reference, suffix);
-        normalized = normalizeAbyssinia(rawData);
-        break;
-      }
-      case 'cbebirr': {
-        const rcpt = receiptNumber || reference;
-        if (!phoneNumber) {
-          return res.status(400).json({
-            success: false,
-            validated: false,
-            error: 'phoneNumber required for CBE Birr'
-          });
-        }
-        const rawData = await verifyCBEBirr(rcpt, phoneNumber);
-        normalized = normalizeCBEBirr(rawData);
-        break;
-      }
-      default:
-        return res.status(400).json({
-          success: false,
-          validated: false,
-          error: `Unsupported payment method: ${payment_method}`
-        });
     }
 
     // If scrape failed, return early
@@ -167,6 +214,10 @@ app.post('/verify-payment', apiKeyMiddleware, async (req: Request, res: Response
 
     // Log for audit
     logger.info(`Verify-payment [${payment_method}]: validated=${validation.passed}, amount=${normalized.amount}, ref=${reference}`);
+
+    if (validation.passed) {
+      await setCachedVerification(cacheKey, response);
+    }
 
     res.json(response);
   } catch (error: any) {
@@ -276,6 +327,10 @@ app.post('/verify-image', apiKeyMiddleware, async (req: Request, res: Response) 
 
 app.listen(PORT, () => {
   logger.info(`Payment Verifier API running on port ${PORT}`);
+
+  // Start the async worker
+  const { startWorker } = require('./worker');
+  startWorker().catch((err: any) => logger.error('Failed to start worker:', err));
 });
 
 export default app;

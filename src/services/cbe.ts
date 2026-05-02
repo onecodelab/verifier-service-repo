@@ -21,7 +21,10 @@ export async function verifyCBE(reference: string, accountSuffix: string): Promi
     // If the full 13-digit account number is provided, we extract the last 8.
     const suffix = accountSuffix.length > 8 ? accountSuffix.slice(-8) : accountSuffix;
     const fullId = `${reference}${suffix}`;
+    // Reverting to port :100 as per CBE requirement (removal caused timeout)
     const url = `https://apps.cbe.com.et:100/?id=${fullId}`;
+
+
 
     logger.info(`Attempting CBE fetch: ${url}`);
     const httpsAgent = new https.Agent({ rejectUnauthorized: false });
@@ -51,21 +54,50 @@ export async function verifyCBE(reference: string, accountSuffix: string): Promi
             let detectedPdfUrl: string | null = null;
 
             page.on('response', (response) => {
-                if (response.headers()['content-type']?.includes('pdf')) {
+                const contentType = response.headers()['content-type']?.toLowerCase() || '';
+                const currentUrl = response.url().toLowerCase();
+                const status = response.status();
+                
+                logger.info(`🌐 Intercepted: [${status}] ${response.url()} (type: ${contentType})`);
+                
+                if (contentType.includes('pdf') || currentUrl.endsWith('.pdf') || (contentType.includes('octet-stream') && currentUrl.includes('id='))) {
+                    logger.info(`✅ Found PDF link: ${response.url()}`);
                     detectedPdfUrl = response.url();
                 }
             });
 
-            logger.info(`Navigating to CBE URL via Puppeteer...`);
+            logger.info(`Navigating to CBE URL: ${url}`);
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-            logger.info(`Page loaded, waiting for PDF detection...`);
-            await new Promise(res => setTimeout(res, 8000));
+            
+            logger.info(`Page reached, watching background traffic for 15 seconds...`);
+            let waitTicks = 0;
+            while (!detectedPdfUrl && waitTicks < 30) { // wait up to 15 seconds (30 * 500ms)
+                await new Promise(res => setTimeout(res, 500));
+                waitTicks++;
+            }
+            
+            if (!detectedPdfUrl) {
+                // Check if the page itself has anything useful
+                const pageContent = await page.content();
+                logger.warn(`PDF not detected in traffic. Page content length: ${pageContent.length}`);
+                if (pageContent.includes('iframe src="') || pageContent.includes('embed src="')) {
+                  logger.info("Found PDF embed/iframe in HTML. Attempting extraction...");
+                  // Add logic to extract from HTML if needed
+                }
+            }
+
             await browser.close();
+            browser = null;
 
-            if (!detectedPdfUrl) return { success: false, error: 'No PDF detected' };
+            if (!detectedPdfUrl) {
+                logger.error(`❌ CBE: No PDF link caught. Site might be down, slow, or URL incorrect: ${url}`);
+                return { success: false, error: 'CBE: No PDF detected' };
+            }
 
+            logger.info(`Downloading PDF: ${detectedPdfUrl}`);
             const pdfRes = await axios.get(detectedPdfUrl, { httpsAgent, responseType: 'arraybuffer' });
             return await parseCBEReceipt(pdfRes.data);
+
         } catch (pErr: any) {
             if (browser) await browser.close();
             return { success: false, error: pErr.message };

@@ -16,8 +16,11 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (including puppeteer which installs chromium)
+# Install dependencies
 RUN npm ci
+
+# Install the correct Chrome version for Puppeteer
+RUN npx puppeteer browsers install chrome
 
 # Copy source
 COPY . .

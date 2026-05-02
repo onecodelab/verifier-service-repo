@@ -35,6 +35,9 @@ export interface NormalizedVerifierResponse {
     /** Transaction date in ISO format */
     date: string;
 
+    /** Alias for date (used by official SDK) */
+    transaction_date?: string;
+
     /** Full timestamp if available */
     timestamp?: string;
 
@@ -46,6 +49,9 @@ export interface NormalizedVerifierResponse {
 
     /** Original raw scraped data for debugging */
     raw_data?: any;
+
+    /** Alias for raw_data */
+    raw?: any;
 
     /** Error message if scrape failed */
     error?: string;

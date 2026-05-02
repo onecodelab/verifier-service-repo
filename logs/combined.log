@@ -1,1 +1,10 @@
 {"level":"warn","message":"Request without API key","service":"payment-verifier-api","timestamp":"2026-02-06 19:39:19"}
+{"level":"warn","message":"Invalid API key attempt: Y21pdnQwMWVnMDAzYW5vMGtmbmNva2w4Ni0xNzY3NDE0OTU3MTMwLXdvaGQ3a2I1bnBy","service":"payment-verifier-api","timestamp":"2026-03-24 01:38:36"}
+{"level":"warn","message":"Invalid API key attempt: Y21pdnQwMWVnMDAzYW5vMGtmbmNva2w4Ni0xNzY3NDE0OTU3MTMwLXdvaGQ3a2I1bnBy","service":"payment-verifier-api","timestamp":"2026-03-24 01:38:39"}
+{"level":"warn","message":"Invalid API key attempt: Y21pdnQwMWVnMDAzYW5vMGtmbmNva2w4Ni0xNzY3NDE0OTU3MTMwLXdvaGQ3a2I1bnBy","service":"payment-verifier-api","timestamp":"2026-03-24 01:38:46"}
+{"level":"warn","message":"Invalid API key attempt: Y21pdnQwMWVnMDAzYW5vMGtmbmNva2w4Ni0xNzY3NDE0OTU3MTMwLXdvaGQ3a2I1bnBy","service":"payment-verifier-api","timestamp":"2026-04-24 23:08:08"}
+{"level":"warn","message":"Invalid API key attempt: Y21pd...","service":"payment-verifier-api","timestamp":"2026-04-24 23:12:03"}
+{"level":"warn","message":"Invalid API key attempt: Y21pd...","service":"payment-verifier-api","timestamp":"2026-04-24 23:12:12"}
+{"level":"warn","message":"Invalid API key attempt: Y21pd...","service":"payment-verifier-api","timestamp":"2026-04-24 23:12:14"}
+{"level":"warn","message":"Invalid API key attempt: Y21pd...","service":"payment-verifier-api","timestamp":"2026-04-24 23:12:28"}
+{"level":"warn","message":"Invalid API key attempt: Y21pd...","service":"payment-verifier-api","timestamp":"2026-04-24 23:12:30"}

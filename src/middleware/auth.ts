@@ -1,13 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import { logger } from "./utils/logger";
 
-const VALID_API_KEYS = (process.env.API_KEYS || "test-key-123").split(",");
-
 export const apiKeyMiddleware = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+  const VALID_API_KEYS = (process.env.API_KEYS || "test-key-123").split(",");
   const apiKey =
     (req.headers["x-api-key"] as string) || (req.query.apiKey as string);
 
@@ -17,8 +16,12 @@ export const apiKeyMiddleware = (
   }
 
   if (!VALID_API_KEYS.includes(apiKey)) {
-    logger.warn(`Invalid API key attempt: ${apiKey}`);
-    return res.status(403).json({ error: "Invalid API key" });
+    logger.warn(`Invalid API key attempt: ${apiKey.substring(0, 5)}...`);
+    return res.status(403).json({ 
+      error: "Invalid API key", 
+      received: `${apiKey.substring(0, 5)}...`,
+      valid_count: VALID_API_KEYS.length
+    });
   }
 
   next();

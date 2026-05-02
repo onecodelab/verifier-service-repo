@@ -42,10 +42,21 @@ export async function verifyAbyssinia(reference: string, suffix: string): Promis
         logger.info(`Page loaded, waiting for dynamic content...`);
 
         // Wait for the SPA to render content
-        await new Promise(r => setTimeout(r, 5000));
-        logger.info(`Starting data extraction...`);
+        await new Promise(r => setTimeout(r, 6000));
+        
+        const pageContent = await page.content();
+        logger.info(`Page HTML length: ${pageContent.length} bytes`);
 
-        // Extract data from the page
+        // Helper for regex extraction
+        const extractWithRegex = (htmlContent: string, labelPattern: string): string | undefined => {
+            const escapedLabel = labelPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // The FIX: added 's' flag here (dotAll)
+            const pattern = new RegExp(`${escapedLabel}.*?\\/td>\\s*<td[^>]*>\\s*([^<]+)`, 'is');
+            const match = htmlContent.match(pattern);
+            return match ? match[1].replace(/<[^>]*>/g, '').trim() : undefined;
+        };
+
+        // Extract data from the page using evaluate OR regex fallback
         const data = await page.evaluate(() => {
             const bodyText = document.body.innerText;
             const bodyHtml = document.body.innerHTML;
@@ -108,11 +119,24 @@ export async function verifyAbyssinia(reference: string, suffix: string): Promis
         await browser.close();
         browser = null;
 
-        if (data.payer || data.amount) {
+        // Apply regex-based fallbacks on pageContent if evaluate missed things
+        const finalData = {
+            payer: data.payer || extractWithRegex(pageContent, "Payer") || extractWithRegex(pageContent, "Sender") || undefined,
+            payerAccount: data.payerAccount || extractWithRegex(pageContent, "Payer Account") || extractWithRegex(pageContent, "Sender Account") || undefined,
+            receiver: data.receiver || extractWithRegex(pageContent, "Beneficiary") || extractWithRegex(pageContent, "Receiver") || undefined,
+            receiverAccount: data.receiverAccount || extractWithRegex(pageContent, "Beneficiary Account") || extractWithRegex(pageContent, "Receiver Account") || undefined,
+            amount: data.amount || extractWithRegex(pageContent, "Amount") || extractWithRegex(pageContent, "Total Amount") || undefined,
+            date: data.date || extractWithRegex(pageContent, "Date") || extractWithRegex(pageContent, "Transaction Date") || undefined,
+            status: data.status || extractWithRegex(pageContent, "Status") || undefined,
+            reason: data.reason || extractWithRegex(pageContent, "Description") || extractWithRegex(pageContent, "Remark") || undefined,
+            reference: data.reference || extractWithRegex(pageContent, "Reference") || extractWithRegex(pageContent, "TRX ID") || undefined
+        };
+
+        if (finalData.payer || finalData.amount || finalData.reference) {
             return {
                 success: true,
                 transactionReference: reference,
-                ...data
+                ...finalData
             };
         }
 
