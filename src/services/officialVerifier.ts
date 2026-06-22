@@ -1,10 +1,10 @@
 import { VerifierClient } from '@creofam/verifier';
 import { logger } from '../utils/logger';
 
-// The SDK interacts with the hosted Verifier API (e.g., verify.leul.et)
+// The SDK interacts with the hosted Verifier API (e.g., verify.et)
 // This is more stable than local scrapers as it's maintained by the official creators.
 const client = new VerifierClient({
-  baseUrl: process.env.OFFICIAL_VERIFIER_URL || 'https://verify.leul.et',
+  baseUrl: process.env.OFFICIAL_VERIFIER_URL || 'https://api.verify.et',
   apiKey: process.env.OFFICIAL_VERIFIER_KEY || '' // User needs to provide this
 });
 
