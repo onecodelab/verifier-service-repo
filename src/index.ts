@@ -242,6 +242,11 @@ app.post('/verify-cbe', apiKeyMiddleware, async (req: Request, res: Response) =>
     if (!reference || !accountSuffix) {
       return res.status(400).json({ error: 'reference and accountSuffix required' });
     }
+    // Try verify.et first
+    const officialResult = await verifyWithOfficialSDK('cbe', reference, { accountSuffix });
+    if (officialResult.success) {
+      return res.json({ ok: true, data: officialResult });
+    }
     const result = await verifyCBE(reference, accountSuffix);
     res.json(result);
   } catch (error: any) {
@@ -256,6 +261,11 @@ app.post('/verify-telebirr', apiKeyMiddleware, async (req: Request, res: Respons
     const { reference } = req.body;
     if (!reference) {
       return res.status(400).json({ error: 'reference required' });
+    }
+    // Try verify.et first
+    const officialResult = await verifyWithOfficialSDK('telebirr', reference);
+    if (officialResult.success) {
+      return res.json({ ok: true, data: officialResult });
     }
     const result = await verifyTelebirr(reference);
     res.json(result);
@@ -272,6 +282,11 @@ app.post('/verify-dashen', apiKeyMiddleware, async (req: Request, res: Response)
     if (!reference) {
       return res.status(400).json({ error: 'reference required' });
     }
+    // Try verify.et first
+    const officialResult = await verifyWithOfficialSDK('dashen', reference);
+    if (officialResult.success) {
+      return res.json({ ok: true, data: officialResult });
+    }
     const result = await verifyDashen(reference);
     res.json(result);
   } catch (error: any) {
@@ -286,6 +301,11 @@ app.post('/verify-abyssinia', apiKeyMiddleware, async (req: Request, res: Respon
     const { reference, suffix } = req.body;
     if (!reference || !suffix) {
       return res.status(400).json({ error: 'reference and suffix required' });
+    }
+    // Try verify.et first
+    const officialResult = await verifyWithOfficialSDK('abyssinia', reference, { suffix });
+    if (officialResult.success) {
+      return res.json({ ok: true, data: officialResult });
     }
     const result = await verifyAbyssinia(reference, suffix);
     res.json(result);
